@@ -21,14 +21,12 @@ def met_to_dataframe(met_data):
         row = {
             'time': timeseries['time'],
             'temperature': timeseries['data']['instant']['details']['air_temperature'],    
-            'cloud_coverage': timeseries['data']['instant']['details']['cloud_area_fraction'],  # Corrected key
-            'relative_humidity': timeseries['data']['instant']['details']['relative_humidity'],  # Corrected key
-            'wind_speed': timeseries['data']['instant']['details']['wind_speed']  # Corrected key
+            'cloud_coverage': timeseries['data']['instant']['details']['cloud_area_fraction'],
+            'relative_humidity': timeseries['data']['instant']['details']['relative_humidity'],
+            'wind_speed': timeseries['data']['instant']['details']['wind_speed']
         }
         rows.append(row)
     return pd.DataFrame(rows)
-
-# NEW STUFF TO TRY BELOW
 
 def transforming_smhi(smhi_df):
 
@@ -48,6 +46,7 @@ def transforming_smhi(smhi_df):
     smhi_df['day_of_week'] = pd.to_datetime(smhi_df['time']).dt.day_name()
     smhi_df['hour_of_day'] = pd.to_datetime(smhi_df['time']).dt.hour
     smhi_df['time'] = smhi_df['time'].dt.strftime('%Y-%m-%d')
+
     smhi_df = smhi_df.rename(columns={'time': 'date'})
 
     return smhi_df
@@ -68,7 +67,7 @@ def transforming_met(met_df):
     met_df['day_of_week'] = pd.to_datetime(met_df['time']).dt.day_name()
     met_df['hour_of_day'] = pd.to_datetime(met_df['time']).dt.hour
     met_df['time'] = met_df['time'].dt.strftime('%Y-%m-%d')
-    met_df = met_df.rename(columns={'time': 'date'})
 
+    met_df = met_df.rename(columns={'time': 'date'})
 
     return met_df

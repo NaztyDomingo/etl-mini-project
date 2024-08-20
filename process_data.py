@@ -29,7 +29,7 @@ def process_weather_data(locations):
         if smhi_data:
             smhi_df = smhi_to_dataframe(smhi_data)
             smhi_df['location'] = location_name
-            smhi_df = transforming_smhi(smhi_df) # NEW TO TRY  
+            smhi_df = transforming_smhi(smhi_df)
             if os.path.exists(TARGET_PATH_SMHI_CSV):
                 smhi_df.to_csv(TARGET_PATH_SMHI_CSV, mode='a', header=False, index=False) 
             else:    
@@ -40,7 +40,7 @@ def process_weather_data(locations):
         if met_data:
             met_df = met_to_dataframe(met_data)
             met_df['location'] = location_name
-            met_df = transforming_met(met_df) # NEW TO TRY  
+            met_df = transforming_met(met_df)
             if os.path.exists(TARGET_PATH_MET_CSV):
                 met_df.to_csv(TARGET_PATH_MET_CSV, mode='a', header=False, index=False)  
             else:
