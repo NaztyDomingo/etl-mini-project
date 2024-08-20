@@ -1,16 +1,26 @@
-import requests
-import pandas as pd
-import json
+from airflow import DAG
+from airflow.operators.python import PythonOperator, BranchPythonOperator
+from airflow.operators.bash import BashOperator
+
 import os
+import requests
+from datetime import datetime
+import json
+import pandas as pd
+import configparser
 
 CURR_PATH = os.path.dirname(os.path.realpath(__file__))
 TARGET_PATH_SMHI = os.path.join(CURR_PATH, 'smhi_weather_data.json')
 TARGET_PATH_MET = os.path.join(CURR_PATH, 'met_weather_data.json')
 
 locations = [
-    {'lat': 59.3, 'lon': 18.0},  # Stockholm
-    {'lat': 55.6, 'lon': 12.5}  # Copenhagen
+    {'lat': 57.7, 'lon': 11.9}, # Göteborg
+    {'lat': 55.6, 'lon': 13.0}, # Malmö
+    {'lat': 59.9, 'lon': 10.7}, # Oslo
+    {'lat': 59.3, 'lon': 18.0}, # Stockholm
+    {'lat': 60.1, 'lon': 24.9} # Helsinki
 ]
+
 
 def _create_smhi_url(lat, lon ):
     return f"https://opendata-download-metfcst.smhi.se/api/category/pmp3g/version/2/geotype/point/lon/{lon}/lat/{lat}/data.json"
@@ -71,22 +81,19 @@ def process_weather_data(locations):
         lat = location['lat']
         lon = location['lon']
 
-        # Get SMHI data
         smhi_data = get_smhi_data(lat, lon)
         if smhi_data:
             smhi_df = smhi_to_dataframe(smhi_data)
             smhi_df.to_csv(f'smhi_weather_data_{lat}_{lon}.csv', index=False)
 
-        # Get MET data
         met_data = get_met_data(lat, lon)
         if met_data:
             met_df = met_to_dataframe(met_data)
             met_df.to_csv(f'met_weather_data_{lat}_{lon}.csv', index=False)
 
-# Call the function to process all locations
-# process_weather_data(locations)
 
 def fetch_api_data():
+    process_weather_data(locations)
     for location in locations:
         lat = location['lat']
         lon = location['lon']
@@ -102,4 +109,15 @@ def fetch_api_data():
                 json.dump(met_data, f)
 
 
-fetch_api_data()
+with DAG(
+    "weather_data_pipeline",
+    start_date=datetime(2021, 1, 1),
+    schedule='@daily',
+    catchup=False
+) as dag:
+    
+    fetch_api_data_task = PythonOperator(
+        task_id='fetch_api_data',
+        python_callable= fetch_api_data
+    )
+    
