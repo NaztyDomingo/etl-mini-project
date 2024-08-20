@@ -1,12 +1,5 @@
-from airflow import DAG
-from airflow.operators.python import PythonOperator, BranchPythonOperator
-from airflow.operators.bash import BashOperator
-import os
 import requests
-from datetime import datetime
-import json
-import pandas as pd
-import configparser
+
 
 locations = [
     {'lat': 57.7, 'lon': 11.9}, # Göteborg
@@ -38,7 +31,7 @@ def get_smhi_data(lat, lon):
 
 def get_met_data(lat, lon):
     met_url = _create_met_url(lat, lon)
-    headers = {'User-Agent': 'weather@brightstraining.com'}  # Ensure you add a User-Agent
+    headers = {'User-Agent': 'weather@brightstraining.com'}
     met_response = requests.get(met_url, headers=headers)
 
     if met_response.status_code == 200:

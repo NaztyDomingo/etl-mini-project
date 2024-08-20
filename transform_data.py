@@ -21,10 +21,9 @@ def met_to_dataframe(met_data):
         row = {
             'time': timeseries['time'],
             'temperature': timeseries['data']['instant']['details']['air_temperature'],    
-            'cloud_coverage': timeseries['data']['instant']['details']['cloud_area_fraction'],
-            'relative humidity': timeseries['data']['instant']['details']['relative_humidity'],
-            'wind-speed': timeseries['data']['instant']['details']['wind-speed']
-              
+            'cloud_coverage': timeseries['data']['instant']['details']['cloud_area_fraction'],  # Corrected key
+            'relative_humidity': timeseries['data']['instant']['details']['relative_humidity'],  # Corrected key
+            'wind_speed': timeseries['data']['instant']['details']['wind_speed']  # Corrected key
         }
         rows.append(row)
     return pd.DataFrame(rows)
