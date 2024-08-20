@@ -1,6 +1,6 @@
 import os
 from get_data import get_met_data, get_smhi_data
-from transform_data import met_to_dataframe, smhi_to_dataframe
+from transform_data import met_to_dataframe, smhi_to_dataframe, transforming_smhi, transforming_met
 import json
 
 CURR_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -28,7 +28,8 @@ def process_weather_data(locations):
         smhi_data = get_smhi_data(lat, lon)
         if smhi_data:
             smhi_df = smhi_to_dataframe(smhi_data)
-            smhi_df['location'] = location_name  
+            smhi_df['location'] = location_name
+            smhi_df = transforming_smhi(smhi_df) # NEW TO TRY  
             if os.path.exists(TARGET_PATH_SMHI_CSV):
                 smhi_df.to_csv(TARGET_PATH_SMHI_CSV, mode='a', header=False, index=False) 
             else:    
@@ -38,7 +39,8 @@ def process_weather_data(locations):
         met_data = get_met_data(lat, lon)
         if met_data:
             met_df = met_to_dataframe(met_data)
-            met_df['location'] = location_name  
+            met_df['location'] = location_name
+            met_df = transforming_met(met_df) # NEW TO TRY  
             if os.path.exists(TARGET_PATH_MET_CSV):
                 met_df.to_csv(TARGET_PATH_MET_CSV, mode='a', header=False, index=False)  
             else:
