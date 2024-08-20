@@ -1,17 +1,5 @@
-from airflow import DAG
-from airflow.operators.python import PythonOperator, BranchPythonOperator
-from airflow.operators.bash import BashOperator
-
-import os
 import requests
-from datetime import datetime
-import json
-import pandas as pd
-import configparser
 
-CURR_PATH = os.path.dirname(os.path.realpath(__file__))
-TARGET_PATH_SMHI = os.path.join(CURR_PATH, 'smhi_weather_data.json')
-TARGET_PATH_MET = os.path.join(CURR_PATH, 'met_weather_data.json')
 
 locations = [
     {'lat': 57.7, 'lon': 11.9}, # Göteborg
@@ -43,7 +31,7 @@ def get_smhi_data(lat, lon):
 
 def get_met_data(lat, lon):
     met_url = _create_met_url(lat, lon)
-    headers = {'User-Agent': 'your-email@example.com'}  # Ensure you add a User-Agent
+    headers = {'User-Agent': 'weather@brightstraining.com'}
     met_response = requests.get(met_url, headers=headers)
 
     if met_response.status_code == 200:
@@ -53,71 +41,3 @@ def get_met_data(lat, lon):
     else:
         print(f"Failed to retrieve MET data: HTTP {met_response.status_code}")
         return None
-
-def smhi_to_dataframe(smhi_data):
-    rows = []
-    for item in smhi_data['timeSeries']:
-        row = {
-            'time': item['validTime'],
-            'temperature': item['parameters'][10]['values'][0],  # Example: Temperature
-            'wind_speed': item['parameters'][14]['values'][0],  # Example: Wind Speed
-        }
-        rows.append(row)
-    return pd.DataFrame(rows)
-
-def met_to_dataframe(met_data):
-    rows = []
-    for timeseries in met_data['properties']['timeseries']:
-        row = {
-            'time': timeseries['time'],
-            'temperature': timeseries['data']['instant']['details']['air_temperature'],  # Example: Temperature
-            'wind_speed': timeseries['data']['instant']['details']['wind_speed'],  # Example: Wind Speed
-        }
-        rows.append(row)
-    return pd.DataFrame(rows)
-
-def process_weather_data(locations):
-    for location in locations:
-        lat = location['lat']
-        lon = location['lon']
-
-        smhi_data = get_smhi_data(lat, lon)
-        if smhi_data:
-            smhi_df = smhi_to_dataframe(smhi_data)
-            smhi_df.to_csv(f'smhi_weather_data_{lat}_{lon}.csv', index=False)
-
-        met_data = get_met_data(lat, lon)
-        if met_data:
-            met_df = met_to_dataframe(met_data)
-            met_df.to_csv(f'met_weather_data_{lat}_{lon}.csv', index=False)
-
-
-def fetch_api_data():
-    process_weather_data(locations)
-    for location in locations:
-        lat = location['lat']
-        lon = location['lon']
-        
-        smhi_data = get_smhi_data(lat, lon)
-        if smhi_data:
-            with open(TARGET_PATH_SMHI, 'w') as f:
-                json.dump(smhi_data, f)
-
-        met_data = get_met_data(lat, lon)
-        if met_data:
-            with open(TARGET_PATH_MET, 'w') as f:
-                json.dump(met_data, f)
-
-
-with DAG(
-    "weather_data_pipeline",
-    start_date=datetime(2021, 1, 1),
-    schedule='@daily',
-    catchup=False
-) as dag:
-    
-    fetch_api_data_task = PythonOperator(
-        task_id='fetch_api_data',
-        python_callable= fetch_api_data
-    )
-    
