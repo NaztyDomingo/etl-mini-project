@@ -11,7 +11,7 @@ conn = connect_to_db()
 cur = conn.cursor()
 
 
-cur.execute('DROP VIEWS IF EXISTS compare_sources, mondays_vs_fridays, overview')
+# cur.execute('DROP VIEWS IF EXISTS compare_sources, mondays_vs_fridays, overview')
 cur.execute('DROP TABLE IF EXISTS weather_data;')
 
 
