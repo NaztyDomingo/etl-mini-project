@@ -7,8 +7,9 @@ import psycopg2 as ps
 from sqlalchemy import create_engine
 import matplotlib.pyplot as plt
 
+from airflow.hooks.postgres_hook import PostgresHook
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.operators.python import PythonOperator, BranchPythonOperator
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 
@@ -180,16 +181,14 @@ def transforming_met(met_df):
 
     return met_df
 
-
 def connect_to_db():
-	return ps.connect(
-		dbname='miniweather_db', 
-		user='nazelisvera', 
-		password='12345',
-		host='localhost',
-		port=5432		
-		)
-
+    return ps.connect(
+        dbname='miniweather_db', 
+        user='nazelisvera', 
+        password='12345',
+        host='localhost',
+        port=5432
+        )
 
 
 def db_template():
@@ -197,9 +196,8 @@ def db_template():
         conn = connect_to_db()
         cur = conn.cursor()
 
-        # cur.execute('DROP VIEWS IF EXISTS compare_sources, mondays_vs_fridays, overview')
+        cur.execute('DROP VIEW IF EXISTS compare_sources, mondays_vs_fridays;')
         cur.execute('DROP TABLE IF EXISTS weather_data;')
-
 
         cur.execute('''
             CREATE TABLE IF NOT EXISTS weather_data(
@@ -216,12 +214,69 @@ def db_template():
             );
         ''')
 
+        cur.execute('''
+            CREATE VIEW compare_sources AS
+            SELECT 
+                smhi.date AS smhi_date,
+                smhi.hour_of_day AS smhi_hour,
+                smhi.location AS smhi_location,
+                smhi.temperature AS smhi_temperature,
+                smhi.cloud_coverage AS smhi_cloud_coverage,
+                smhi.relative_humidity AS smhi_relative_humidity,
+                smhi.wind_speed AS smhi_wind_speed,
+                met.temperature AS met_temperature,
+                met.cloud_coverage AS met_cloud_coverage,
+                met.relative_humidity AS met_relative_humidity,
+                met.wind_speed AS met_wind_speed
+            FROM 
+                weather_data smhi
+            JOIN 
+                weather_data met
+            ON 
+                smhi.date = met.date
+                AND smhi.hour_of_day = met.hour_of_day
+                AND smhi.location = met.location
+            WHERE 
+                smhi.source = 'SMHI' 
+                AND met.source = 'MET';
+        ''')
+
+        cur.execute('''
+            CREATE VIEW Mondays_vs_Fridays AS
+            SELECT 
+                mon.date AS monday_date,
+                mon.hour_of_day AS monday_hour,
+                mon.location AS monday_location,
+                mon.temperature AS monday_temperature,
+                mon.cloud_coverage AS monday_cloud_coverage,
+                mon.relative_humidity AS monday_relative_humidity,
+                mon.wind_speed AS monday_wind_speed,
+                fri.date AS friday_date,
+                fri.hour_of_day AS friday_hour,
+                fri.location AS friday_location,
+                fri.temperature AS friday_temperature,
+                fri.cloud_coverage AS friday_cloud_coverage,
+                fri.relative_humidity AS friday_relative_humidity,
+                fri.wind_speed AS friday_wind_speed
+            FROM 
+                weather_data mon
+            JOIN 
+                weather_data fri
+            ON 
+                mon.date = fri.date
+                AND mon.hour_of_day = fri.hour_of_day
+                AND mon.location = fri.location
+            WHERE 
+                mon.day_of_week = 'Monday'
+                AND fri.day_of_week = 'Friday';
+        ''')
+
         conn.commit()
-        print('Template created successfully')
-    
+        print('Templates created successfully')
+
     except Exception as e:
         print('Template creation failed')
-        print(f'Error:{e}')
+        print(f'Error: {e}')
     
     finally:
         cur.close()
@@ -254,7 +309,6 @@ def load_to_db():
 
     weather_data.to_sql(name="weather_data", con=postgres_engine, if_exists="replace", index=False)
 
-    return weather_data
 
 
 
@@ -320,8 +374,14 @@ fetch_data_task = PythonOperator(
     dag=dag,
 )
 
+create_connection_task = BranchPythonOperator(
+    task_id='create_db_connection',
+    python_callable=connect_to_db,
+    dag=dag,
+)
+
 create_table_task = PythonOperator(
-    task_id='load_data_to_db',
+    task_id='create_psql_table',
     python_callable=db_template,
     dag=dag,
 )
@@ -338,4 +398,4 @@ plot_data_task = PythonOperator(
     dag=dag,
 )
 
-fetch_data_task >> create_table_task >> load_data_task >> plot_data_task
+fetch_data_task >> create_connection_task >> create_table_task >> load_data_task >> plot_data_task
