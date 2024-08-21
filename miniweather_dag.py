@@ -25,7 +25,7 @@ locations = [
     {'lat': 55.6, 'lon': 13.0}, # Malmö
     {'lat': 59.9, 'lon': 10.7}, # Oslo
     {'lat': 59.3, 'lon': 18.0}, # Stockholm
-    {'lat': 60.1, 'lon': 24.9} # Helsinki
+    {'lat': 60.1, 'lon': 24.9}  # Helsinki
 ]
 
 
@@ -398,4 +398,8 @@ plot_data_task = PythonOperator(
     dag=dag,
 )
 
+<<<<<<< HEAD
 fetch_data_task >> create_connection_task >> create_table_task >> load_data_task >> plot_data_task
+=======
+fetch_data_task >> create_table_task >> load_data_task >> plot_data_task
+>>>>>>> 8161d036e12017d92569b771903ed32c5bfc1f18
