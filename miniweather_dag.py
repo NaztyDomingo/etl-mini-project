@@ -24,7 +24,7 @@ locations = [
     {'lat': 55.6, 'lon': 13.0}, # Malmö
     {'lat': 59.9, 'lon': 10.7}, # Oslo
     {'lat': 59.3, 'lon': 18.0}, # Stockholm
-    {'lat': 60.1, 'lon': 24.9} # Helsinki
+    {'lat': 60.1, 'lon': 24.9}  # Helsinki
 ]
 
 
