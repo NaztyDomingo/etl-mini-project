@@ -1,6 +1,4 @@
-# Fixa dags
-# Fixa README.md
-
+# Description: This file contains the Airflow DAG for the miniweather project.
 import requests
 import os
 import json
@@ -8,6 +6,11 @@ import pandas as pd
 import psycopg2 as ps
 from sqlalchemy import create_engine
 import matplotlib.pyplot as plt
+
+from airflow import DAG
+from airflow.operators.python import PythonOperator
+from airflow.utils.dates import days_ago
+from datetime import timedelta
 
 CURR_PATH = os.path.dirname(os.path.realpath(__file__))
 TARGET_PATH_SMHI = os.path.join(CURR_PATH, 'smhi_weather_data.json')
@@ -190,38 +193,43 @@ def connect_to_db():
 
 
 def db_template():
+    try:
+        conn = connect_to_db()
+        cur = conn.cursor()
 
-    conn = connect_to_db()
-    cur = conn.cursor()
-
-
-    cur.execute('DROP VIEWS IF EXISTS compare_sources, mondays_vs_fridays, overview')
-    cur.execute('DROP TABLE IF EXISTS weather_data;')
-
-
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS weather_data(
-            ID SERIAL PRIMARY KEY,
-            date DATE,
-            temperature NUMERIC(4, 2),
-            cloud_coverage NUMERIC(5, 2),
-            relative_humidity NUMERIC(4, 2),
-            wind_speed NUMERIC(4, 2),
-            location TEXT,
-            source TEXT,
-            day_of_week TEXT,
-            hour_of_day INT
-        );
-    ''')
+        # cur.execute('DROP VIEWS IF EXISTS compare_sources, mondays_vs_fridays, overview')
+        cur.execute('DROP TABLE IF EXISTS weather_data;')
 
 
-    conn.commit()
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS weather_data(
+                ID SERIAL PRIMARY KEY,
+                date DATE,
+                temperature NUMERIC(4, 2),
+                cloud_coverage NUMERIC(5, 2),
+                relative_humidity NUMERIC(4, 2),
+                wind_speed NUMERIC(4, 2),
+                location TEXT,
+                source TEXT,
+                day_of_week TEXT,
+                hour_of_day INT
+            );
+        ''')
 
+        conn.commit()
+        print('Template created successfully')
+    
+    except Exception as e:
+        print('Template creation failed')
+        print(f'Error:{e}')
+    
+    finally:
+        cur.close()
+        conn.close()
+    
+    
 
-    cur.close()
-    conn.close()
-
-
+def load_to_db():
     postgres_engine = create_engine(
         url="postgresql+psycopg2://localhost",
         creator=connect_to_db
@@ -246,6 +254,7 @@ def db_template():
 
     weather_data.to_sql(name="weather_data", con=postgres_engine, if_exists="replace", index=False)
 
+    return weather_data
 
 
 
@@ -287,12 +296,6 @@ def plot_weather():
 
 
 
-from airflow import DAG
-from airflow.operators.python import PythonOperator
-from airflow.utils.dates import days_ago
-from datetime import timedelta
-
-
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
@@ -311,26 +314,28 @@ dag = DAG(
     catchup=False,
 )
 
-# Task 1: Fetch the API data
 fetch_data_task = PythonOperator(
     task_id='fetch_data',
     python_callable=fetch_api_data,
     dag=dag,
 )
 
-# Task 2: Load the data into PostgreSQL
-load_data_task = PythonOperator(
+create_table_task = PythonOperator(
     task_id='load_data_to_db',
     python_callable=db_template,
     dag=dag,
 )
 
-# Task 3: Generate plots from the data
-plot_data_task = PythonOperator(
-    task_id='plot_data',
-    python_callable=plot_weather(),
+load_data_task = PythonOperator(
+    task_id='load_data',
+    python_callable=load_to_db,
     dag=dag,
 )
 
-# Set the order of execution
-fetch_data_task >> load_data_task >> plot_data_task
+plot_data_task = PythonOperator(
+    task_id='plot_data',
+    python_callable=plot_weather,
+    dag=dag,
+)
+
+fetch_data_task >> create_table_task >> load_data_task >> plot_data_task
